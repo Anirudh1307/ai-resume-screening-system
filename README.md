@@ -125,6 +125,8 @@ Create a `.env` file if you want to override defaults:
 ```env
 DATABASE_URL=sqlite:///./resume_screening.db
 CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+RESUME_DIR=./resumes
+JOB_DIR=./backend/storage/jobs
 SPACY_MODEL=en_core_web_sm
 SENTENCE_TRANSFORMER_MODEL=all-MiniLM-L6-v2
 ```
@@ -143,6 +145,49 @@ DATABASE_URL=postgresql+psycopg2://username:password@localhost:5432/resume_scree
 
 ```bat
 venv\Scripts\python -m spacy download en_core_web_sm
+```
+
+## Deployment
+
+### Frontend on Vercel
+
+Deploy the `frontend/` directory as the Vercel project root.
+
+Set this environment variable in Vercel:
+
+```env
+VITE_API_URL=https://your-render-backend.onrender.com/api
+```
+
+Notes:
+
+- `frontend/vercel.json` is included so SPA routes rewrite to `index.html`
+- Build command: `npm run build`
+- Output directory: `dist`
+
+### Backend on Render
+
+The repo includes `render.yaml` for the FastAPI backend plus a PostgreSQL database.
+
+Important Render environment values:
+
+```env
+CORS_ORIGINS=https://your-vercel-project.vercel.app,http://localhost:5173,http://127.0.0.1:5173
+RESUME_DIR=/var/data/resumes
+JOB_DIR=/var/data/jobs
+SPACY_MODEL=en_core_web_sm
+SENTENCE_TRANSFORMER_MODEL=all-MiniLM-L6-v2
+```
+
+Notes:
+
+- `DATABASE_URL` is provided automatically from the Render PostgreSQL instance in `render.yaml`
+- uploaded resumes are stored on the attached Render disk mounted at `/var/data`
+- backend health check path is `/api/health`
+- startup command is:
+
+```text
+uvicorn backend.main:app --host 0.0.0.0 --port $PORT
 ```
 
 ## Frontend Dashboard
