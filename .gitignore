@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+resume_screening.db
+frontend/node_modules/
+frontend/dist/
+resumes/*
+!resumes/.gitkeep
+backend/storage/resumes/*
+backend/storage/jobs/*
+!backend/storage/resumes/.gitkeep
+!backend/storage/jobs/.gitkeep
