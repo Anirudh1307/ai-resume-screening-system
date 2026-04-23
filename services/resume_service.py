@@ -8,7 +8,7 @@ from fastapi import HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from backend.config import get_settings
+from config import get_settings
 from models.entities import Candidate
 from models.schemas import CandidateRead, ResumeDeleteResponse
 from services.nlp_service import NLPService, get_nlp_service

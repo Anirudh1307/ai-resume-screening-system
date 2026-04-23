@@ -9,7 +9,7 @@ from spacy.language import Language
 from spacy.matcher import PhraseMatcher
 from spacy.tokens import Doc
 
-from backend.config import get_settings
+from config import get_settings
 
 
 EMAIL_PATTERN = re.compile(r"[\w\.-]+@[\w\.-]+\.\w+")

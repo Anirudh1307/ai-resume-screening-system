@@ -4,7 +4,7 @@ from functools import lru_cache
 
 from sentence_transformers import SentenceTransformer, util
 
-from backend.config import get_settings
+from config import get_settings
 from models.entities import Candidate, JobDescription
 
 

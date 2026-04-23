@@ -6,7 +6,7 @@ from uuid import uuid4
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
-from backend.config import get_settings
+from config import get_settings
 from models.entities import JobDescription
 from services.nlp_service import NLPService, get_nlp_service
 from services.resume_service import ResumeService

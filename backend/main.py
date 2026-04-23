@@ -3,8 +3,8 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.config import get_settings
-from backend.database import init_db
+from config import get_settings
+from database import init_db
 from routes.ats import router as ats_router
 from routes.health import router as health_router
 from routes.jobs import router as jobs_router
