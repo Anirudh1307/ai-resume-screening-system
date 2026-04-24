@@ -1,26 +1,32 @@
 from __future__ import annotations
 
+import logging
 from functools import lru_cache
-
-from sentence_transformers import SentenceTransformer, util
 
 from config import get_settings
 from models.entities import Candidate, JobDescription
 
 
+logger = logging.getLogger(__name__)
+
+
 class MatchingService:
     def __init__(self) -> None:
         self.settings = get_settings()
-        self._model: SentenceTransformer | None = None
+        self._model = None
 
     @property
-    def model(self) -> SentenceTransformer:
+    def model(self):
         if self._model is None:
             try:
+                from sentence_transformers import SentenceTransformer
+                logger.info("Loading SentenceTransformer model: %s", self.settings.sentence_transformer_model)
                 self._model = SentenceTransformer(
-                    self.settings.sentence_transformer_model
+                    self.settings.sentence_transformer_model,
+                    device="cpu",
                 )
-            except Exception as exc:  # pragma: no cover
+            except Exception as exc:
+                logger.error("Failed to load SentenceTransformer: %s", exc)
                 raise RuntimeError(
                     "Sentence Transformer model could not be loaded. "
                     "Install dependencies and ensure the model is downloadable."
@@ -39,6 +45,7 @@ class MatchingService:
 
     @staticmethod
     def compute_cosine_similarity(resume_embedding, job_embedding) -> float:
+        from sentence_transformers import util
         similarity = util.cos_sim(resume_embedding, job_embedding).item()
         return round(max(min(similarity, 1.0), 0.0) * 100, 2)
 

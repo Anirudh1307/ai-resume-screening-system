@@ -1,16 +1,14 @@
 from __future__ import annotations
 
+import logging
 import re
 from datetime import datetime
 from functools import lru_cache
 
-import spacy
-from spacy.language import Language
-from spacy.matcher import PhraseMatcher
-from spacy.tokens import Doc
-
 from config import get_settings
 
+
+logger = logging.getLogger(__name__)
 
 EMAIL_PATTERN = re.compile(r"[\w\.-]+@[\w\.-]+\.\w+")
 PHONE_PATTERN = re.compile(
@@ -35,17 +33,37 @@ class NLPService:
     def __init__(self) -> None:
         settings = get_settings()
         self.skill_catalog = settings.skill_catalog
-        self.nlp = self._load_model(settings.spacy_model)
-        self.skill_matcher = PhraseMatcher(self.nlp.vocab, attr="LOWER")
-        self.skill_matcher.add(
-            "SKILLS", [self.nlp.make_doc(skill) for skill in self.skill_catalog]
-        )
+        self._spacy_model_name = settings.spacy_model
+        self._nlp = None
+        self._skill_matcher = None
+
+    @property
+    def nlp(self):
+        if self._nlp is None:
+            self._nlp = self._load_model(self._spacy_model_name)
+            self._skill_matcher = None  # reset matcher when model loads
+        return self._nlp
+
+    @property
+    def skill_matcher(self):
+        if self._skill_matcher is None:
+            import spacy  # noqa: F401 — deferred to avoid import-time load
+            from spacy.matcher import PhraseMatcher
+            self._skill_matcher = PhraseMatcher(self.nlp.vocab, attr="LOWER")
+            self._skill_matcher.add(
+                "SKILLS", [self.nlp.make_doc(skill) for skill in self.skill_catalog]
+            )
+        return self._skill_matcher
 
     @staticmethod
-    def _load_model(model_name: str) -> Language:
+    def _load_model(model_name: str):
+        import spacy
+        from spacy.language import Language  # noqa: F401
         try:
+            logger.info("Loading spaCy model: %s", model_name)
             nlp = spacy.load(model_name)
         except OSError:
+            logger.warning("spaCy model '%s' not found, falling back to blank 'en'.", model_name)
             nlp = spacy.blank("en")
             if "sentencizer" not in nlp.pipe_names:
                 nlp.add_pipe("sentencizer")
@@ -60,6 +78,7 @@ class NLPService:
         return text.strip()
 
     def parse_resume(self, raw_text: str) -> dict[str, object]:
+        from spacy.tokens import Doc  # noqa: F401
         cleaned = self.clean_text(raw_text)
         doc = self.nlp(cleaned)
         return {
@@ -82,7 +101,7 @@ class NLPService:
             "minimum_years_experience": self.extract_required_experience(cleaned),
         }
 
-    def extract_name(self, text: str, doc: Doc) -> str | None:
+    def extract_name(self, text: str, doc) -> str | None:
         for entity in doc.ents:
             if entity.label_ == "PERSON" and len(entity.text.split()) <= 4:
                 return entity.text.strip()
@@ -102,12 +121,12 @@ class NLPService:
         match = PHONE_PATTERN.search(text)
         return match.group(0) if match else None
 
-    def extract_skills(self, doc: Doc) -> list[str]:
+    def extract_skills(self, doc) -> list[str]:
         matches = self.skill_matcher(doc)
         skills = {doc[start:end].text.lower().strip() for _, start, end in matches}
         return sorted(skills)
 
-    def extract_education(self, text: str, doc: Doc) -> list[str]:
+    def extract_education(self, text: str, doc) -> list[str]:
         results: list[str] = []
         seen: set[str] = set()
 
@@ -132,7 +151,7 @@ class NLPService:
 
         return results
 
-    def extract_experience_highlights(self, doc: Doc) -> list[str]:
+    def extract_experience_highlights(self, doc) -> list[str]:
         keywords = (
             "experience",
             "worked",

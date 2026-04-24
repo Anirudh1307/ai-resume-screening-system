@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -12,7 +15,19 @@ from routes.resumes import router as resumes_router
 from routes.screening import router as screening_router
 
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 settings = get_settings()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Starting up — initialising database...")
+    init_db()
+    logger.info("Database ready. Server is accepting requests.")
+    yield
+
 
 app = FastAPI(
     title=settings.app_name,
@@ -22,6 +37,7 @@ app = FastAPI(
         "AI-powered applicant tracking system for uploading resumes, processing job "
         "descriptions, and returning ranked candidates."
     ),
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -31,11 +47,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.on_event("startup")
-def on_startup() -> None:
-    init_db()
 
 
 @app.get("/")
