@@ -1,4 +1,4 @@
-import { startTransition, useDeferredValue, useEffect, useState } from "react";
+import { startTransition, useDeferredValue, useEffect, useMemo, useState } from "react";
 
 import {
   deleteResume,
@@ -9,11 +9,9 @@ import {
   uploadJob,
   uploadResumes,
 } from "./api/client";
+import CandidateDetailPanel from "./components/CandidateDetailPanel";
 import CandidateTable from "./components/CandidateTable";
-import FilterBar from "./components/FilterBar";
-import ResumeLibrary from "./components/ResumeLibrary";
-import SummaryCards from "./components/SummaryCards";
-import UploadPanel from "./components/UploadPanel";
+import Sidebar from "./components/Sidebar";
 
 export default function App() {
   const [jobs, setJobs] = useState([]);
@@ -24,11 +22,19 @@ export default function App() {
   const [appliedSkillFilter, setAppliedSkillFilter] = useState("");
   const [busy, setBusy] = useState(false);
   const [loadingRankings, setLoadingRankings] = useState(false);
+  const [selectedCandidateId, setSelectedCandidateId] = useState(null);
   const [message, setMessage] = useState("System ready. Add a job description to begin.");
 
   // Defer large ranking list updates so filtering and uploads feel responsive.
   const deferredRankings = useDeferredValue(rankings);
   const activeJob = jobs.find((job) => job.id === activeJobId) || null;
+  const selectedCandidate = useMemo(
+    () =>
+      deferredRankings.find((candidate) => candidate.candidate_id === selectedCandidateId) ||
+      deferredRankings[0] ||
+      null,
+    [deferredRankings, selectedCandidateId]
+  );
 
   useEffect(() => {
     async function loadInitialData() {
@@ -73,6 +79,20 @@ export default function App() {
 
     loadRankings();
   }, [activeJobId, appliedSkillFilter]);
+
+  useEffect(() => {
+    if (!deferredRankings.length) {
+      setSelectedCandidateId(null);
+      return;
+    }
+
+    const selectedStillExists = deferredRankings.some(
+      (candidate) => candidate.candidate_id === selectedCandidateId
+    );
+    if (!selectedStillExists) {
+      setSelectedCandidateId(deferredRankings[0].candidate_id);
+    }
+  }, [deferredRankings, selectedCandidateId]);
 
   async function handleCreateJob(payload) {
     setBusy(true);
@@ -170,27 +190,8 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
-      <div className="background-orb background-orb-left" />
-      <div className="background-orb background-orb-right" />
-
-      <header className="hero">
-        <div>
-          <p className="eyebrow">AI Resume Screening System</p>
-          <h1>Rank applicants with explainable AI matching.</h1>
-          <p className="hero-copy">
-            Upload a role brief, batch-process resumes, and surface the strongest fits using
-            skill overlap, experience relevance, and semantic similarity.
-          </p>
-        </div>
-
-        <div className="status-card">
-          <span className="status-dot" />
-          <p>{message}</p>
-        </div>
-      </header>
-
-      <UploadPanel
+    <div className="ats-shell">
+      <Sidebar
         jobs={jobs}
         activeJobId={activeJobId}
         onSelectJob={setActiveJobId}
@@ -198,25 +199,32 @@ export default function App() {
         onUploadResumes={handleResumeUpload}
         onProcess={handleProcess}
         busy={busy}
+        candidateCount={candidates.length}
+        rankedCount={deferredRankings.length}
+        message={loadingRankings ? "Analyzing candidates..." : message}
       />
 
-      <SummaryCards rankings={deferredRankings} />
+      <main className="candidate-workspace" aria-label="Candidate rankings">
+        <CandidateTable
+          rankings={deferredRankings}
+          loading={loadingRankings}
+          activeJob={activeJob}
+          skillFilter={skillFilter}
+          setSkillFilter={setSkillFilter}
+          onApplyFilter={handleApplyFilter}
+          onResetFilter={handleResetFilter}
+          selectedCandidateId={selectedCandidate?.candidate_id || null}
+          onSelectCandidate={setSelectedCandidateId}
+        />
+      </main>
 
-      <FilterBar
-        skillFilter={skillFilter}
-        setSkillFilter={setSkillFilter}
-        onApplyFilter={handleApplyFilter}
-        onResetFilter={handleResetFilter}
+      <CandidateDetailPanel
+        key={selectedCandidate?.candidate_id || "empty-detail"}
+        candidate={selectedCandidate}
         activeJob={activeJob}
-      />
-
-      <ResumeLibrary
-        resumes={candidates}
-        onDeleteResume={handleDeleteResume}
         busy={busy}
+        onDeleteResume={handleDeleteResume}
       />
-
-      <CandidateTable rankings={deferredRankings} loading={loadingRankings} />
     </div>
   );
 }
